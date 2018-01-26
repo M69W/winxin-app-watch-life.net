@@ -13,8 +13,12 @@
 var Api = require('../../utils/api.js');
 var util = require('../../utils/util.js');
 var WxParse = require('../../wxParse/wxParse.js');
-var wxApi = require('../../es6-promise/utils/wxApi.js')
-var wxRequest = require('../../es6-promise/utils/wxRequest.js')
+var wxApi = require('../../utils/wxApi.js')
+var wxRequest = require('../../utils/wxRequest.js')
+
+import config from '../../utils/config.js'
+
+var pageCount = config.getPageCount;
 
 Page({
   data: {    
@@ -31,12 +35,25 @@ Page({
     displayHeader:"none",
     displaySwiper: "none",
     floatDisplay: "none",
+    displayfirstSwiper:"none",
+    topNav: []
+    
 
   },
   formSubmit: function (e) {
     var url = '../list/list'
-    if (e.detail.value.input != '') {
-      url = url + '?search=' + e.detail.value.input;
+    var key ='';
+    if (e.currentTarget.id =="search-input")
+    {
+        key = e.detail.value;
+    }
+    else{
+
+        key = e.detail.value.input;
+
+    }
+    if (key != '') {
+      url = url + '?search=' +key;
       wx.navigateTo({
         url: url
       })
@@ -45,7 +62,7 @@ Page({
     {
       wx.showModal({
         title: '提示',
-        content: '请输入搜索内容',
+        content: '请输入内容',
         showCancel: false,
       });
 
@@ -54,7 +71,7 @@ Page({
   },
   onShareAppMessage: function () {
     return {
-      title: '“守望轩”网站微信小程序,基于WordPress版小程序构建.技术支持：www.watch-life.net',
+      title: '“' + config.getWebsiteName+'”网站微信小程序,基于WordPress版小程序构建.技术支持：www.watch-life.net',
       path: 'pages/index/index',
       success: function (res) {
         // 转发成功
@@ -71,20 +88,24 @@ Page({
       showallDisplay:"none",
       displaySwiper:"none",
       floatDisplay:"none",
+      isLastPage:false,
       page:0,
       postsShowSwiperList:[]
     });
     this.fetchTopFivePosts(); 
     
   },
-  onReachBottom: function () {
-
-    //console.log("xialajiazai");  
+  onReachBottom: function () {  
    
   },
   onLoad: function (options) {
     var self = this; 
-    this.fetchTopFivePosts();   
+    this.fetchTopFivePosts();
+    self.setData({
+        topNav: config.getIndexNav
+
+    });
+       
   },
   onShow: function (options){
       wx.setStorageSync('openLinkCount', 0);
@@ -93,20 +114,19 @@ Page({
   fetchTopFivePosts: function () {
     var self = this;
     //取置顶的文章
-    var getPostsRequest = wxRequest.getRequest(Api.getStickyPosts());
+    var getPostsRequest = wxRequest.getRequest(Api.getSwiperPosts());
     getPostsRequest.then(response => {
-            if (response.data.length > 0) {
-
+        if (response.data.status =='200' && response.data.posts.length > 0) {
                 self.setData({
-                    postsShowSwiperList: response.data,
-                    postsShowSwiperList: self.data.postsShowSwiperList.concat(response.data.map(function (item) {
+                    postsShowSwiperList: response.data.posts,
+                    postsShowSwiperList: self.data.postsShowSwiperList.concat(response.data.posts.map(function (item) {
                         //item.firstImage = Api.getContentFirstImage(item.content.rendered);
                         if (item.post_medium_image_300 == null || item.post_medium_image_300 == '') {
                             if (item.content_first_image != null && item.content_first_image != '') {
                                 item.post_medium_image_300 = item.content_first_image;
                             }
                             else {
-                                item.post_medium_image_300 = Api.getContentFirstImage(item.content.rendered);
+                                item.post_medium_image_300 = "../../images/logo700.png";
                             }
 
                         }
@@ -132,18 +152,15 @@ Page({
             self.fetchPostsData(self.data);
 
         })
-        .catch(function (){
+        .catch(function (response){
+            console.log(response); 
             self.setData({
                 showerror: "block",
                 floatDisplay: "none"
             });
 
-        }
-        )
+        })
         .finally(function () {
-
-           // console.log(response); 
-            
         
     });            
    
@@ -170,7 +187,7 @@ Page({
         .then(response => {
             if (response.statusCode === 200) {
 
-                if (response.data.length < 6) {
+                if (response.data.length < pageCount) {
                     self.setData({
                         isLastPage: true
                     });
@@ -189,7 +206,7 @@ Page({
                         }
 
                         if (item.post_thumbnail_image == null || item.post_thumbnail_image == '') {
-                            item.post_thumbnail_image = Api.getContentFirstImage(item.content.rendered);
+                            item.post_thumbnail_image = "../../images/logo700.png";
                         }
                         item.date = util.cutstr(strdate, 10, 1);
                         return item;
@@ -277,6 +294,53 @@ Page({
     wx.navigateTo({
       url: url
     })
+  },
+  //首页图标跳转
+  onNavRedirect:function(e){      
+      var url = e.currentTarget.dataset.redirectlink;
+      var redirectType = e.currentTarget.dataset.redirecttype;
+      var appid = e.currentTarget.dataset.appid; 
+      if (redirectType=='page')
+      {
+          wx.navigateTo({
+              url: url
+          })
+      }
+      else if (redirectType == 'app')
+      {
+          wx.navigateToMiniProgram({
+              appId: appid,
+              envVersion: 'release',
+              path: url,
+              success(res) {
+                  // 打开成功
+              },
+              fail: function (res) {
+                  console.log(res);
+              }
+          })
+
+      }   
+      
+  },
+  // 跳转至查看小程序列表页面或文章详情页
+  redictAppDetail: function (e) {
+      // console.log('查看文章');
+      var id = e.currentTarget.id;
+      var redicttype = e.currentTarget.dataset.redicttype;
+      var url='';
+      if (redicttype == 'detailpage')
+      {
+          url = '../detail/detail?id=' + id;
+      }
+      else if (redicttype == 'apppage')
+      {
+          url = '../applist/applist';
+      }
+      
+      wx.navigateTo({
+          url: url
+      })
   },
   //返回首页
   redictHome: function (e) {

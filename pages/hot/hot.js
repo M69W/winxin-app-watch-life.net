@@ -13,8 +13,10 @@
 var Api = require('../../utils/api.js');
 var util = require('../../utils/util.js');
 var WxParse = require('../../wxParse/wxParse.js');
-var wxApi = require('../../es6-promise/utils/wxApi.js')
-var wxRequest = require('../../es6-promise/utils/wxRequest.js')
+var wxApi = require('../../utils/wxApi.js')
+var wxRequest = require('../../utils/wxRequest.js')
+
+import config from '../../utils/config.js'
 
 
 Page({
@@ -39,8 +41,10 @@ Page({
     searchKey:"",
     topBarItems: [
         // id name selected 选中状态
-        { id: '1', name: '本年度最受欢迎', selected: true },
-        { id: '2', name: '最受欢迎总排行', selected: false }
+        { id: '1', name: '评论数', selected: true },
+        { id: '2', name: '浏览数', selected: false },        
+        { id: '3', name: '点赞数', selected: false },
+        { id: '4', name: '赞赏数', selected: false }
     ],
     tab: '1',
 
@@ -55,8 +59,7 @@ Page({
     })
   },
   onShareAppMessage: function () {
-
-    var title = "分享“守望轩”的热点文章。";
+    var title = "分享“"+ config.getWebsiteName +"”的文章排行。";
     var path ="pages/hot/hot";
     return {
       title: title,
@@ -71,8 +74,7 @@ Page({
   },
   reload:function(e)
   {
-    var self = this;
-   
+    var self = this;   
     self.fetchPostsData(self.data);
   },
 
@@ -117,19 +119,15 @@ Page({
       mask:true
     });
     var getTopHotPostsRequest = wxRequest.getRequest(Api.getTopHotPosts(tab));
-
     getTopHotPostsRequest.then(response =>{
-
-        if (response.statusCode === 201) {
-
+        if (response.statusCode === 200) {
             self.setData({
                 showallDisplay: "block",
+                floatDisplay: "block",
                 postsList: self.data.postsList.concat(response.data.map(function (item) {
                     var strdate = item.post_date
-
-
                     if (item.post_thumbnail_image == null || item.post_thumbnail_image == '') {
-                        item.post_thumbnail_image = '../../images/watch-life-logo-128.jpg';
+                        item.post_thumbnail_image = '../../images/logo700.png';
                     }
                     item.post_date = util.cutstr(strdate, 10, 1);
                     return item;
@@ -137,20 +135,16 @@ Page({
 
             });
 
+        } else if (response.statusCode === 404) { 
 
-        } else if (response.statusCode === 404) {
-            wx.showModal({
-                title: '加载失败',
-                content: '加载数据失败,可能没有文章评论。',
-                showCancel: false,
-            });
+            // wx.showModal({
+            //     title: '加载失败',
+            //     content: '加载数据失败,可能缺少相应的数据',
+            //     showCancel: false,
+            // });
+
+            console.log('加载数据失败,可能缺少相应的数据'); 
         }
-
-        setTimeout(function () {
-            wx.hideLoading();
-
-        }, 1500);
-
     })
     .catch(function () {
         wx.hideLoading();
@@ -158,18 +152,26 @@ Page({
 
             self.setData({
                 showerror: "block",
-                floatDisplay: "none"
+                floatDisplay: "block"
             });
 
         }
         else {
-            wx.showModal({
-                title: '加载失败',
-                content: '加载数据失败,请重试.',
-                showCancel: false,
-            });
+            // wx.showModal({
+            //     title: '加载失败',
+            //     content: '加载数据失败,请重试.',
+            //     showCancel: false,
+            // });
         }
-    })    
+    })
+    .finally(function () {
+
+        setTimeout(function () {
+            wx.hideLoading();
+
+        }, 1500);
+
+        });    
   }, 
   // 跳转至查看文章详情
   redictDetail: function (e) {
