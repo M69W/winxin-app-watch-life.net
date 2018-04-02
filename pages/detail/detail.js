@@ -21,6 +21,9 @@ var wxRequest = require('../../utils/wxRequest.js')
 var app = getApp();
 let isFocusing = false
 
+
+import { ModalView } from '../../templates/modal-view/modal-view.js'
+
 Page({
     data: {
         title: '文章内容',
@@ -36,7 +39,7 @@ Page({
         isLastPage: false,
         parentID: "0",
         focus: false,
-        placeholder: "输入评论",
+        placeholder: "评论...",
         postID: null,
         scrollHeight: 0,
         postList: [],
@@ -56,13 +59,18 @@ Page({
         displayLike: 'none',
         replayTemplateId: config.getReplayTemplateId,
         userid: "",
-        toFromId:"",
-        commentdate:"",
-        flag: 1
+        toFromId: "",
+        commentdate: "",
+        flag: 1,
+        logo: config.getLogo
+
+
 
     },
     onLoad: function (options) {
         this.fetchDetailData(options.id);
+        new ModalView;
+
     },
     showLikeImg: function () {
         var self = this;
@@ -88,6 +96,7 @@ Page({
         return {
             title: '分享"' + config.getWebsiteName + '"的文章：' + this.data.detail.title.rendered,
             path: 'pages/detail/detail?id=' + this.data.detail.id,
+            imageUrl: this.data.detail.post_thumbnail_image,
             success: function (res) {
                 // 转发成功
                 console.log(res);
@@ -96,26 +105,22 @@ Page({
                 console.log(res);
                 // 转发失败
             }
-
-
         }
     },
     gotowebpage: function () {
         var self = this;
         self.ShowHideMenu();
         var minAppType = config.getMinAppType;
-        var url ='';
-        if (minAppType=="0")
-        {
+        var url = '';
+        if (minAppType == "0") {
             url = '../webpage/webpage';
             wx.navigateTo({
                 url: url + '?url=' + self.data.link
             })
-        } 
-        else
-        {
+        }
+        else {
             self.copyLink(self.data.link);
-        }        
+        }
 
     },
     copyLink: function (url) {
@@ -226,14 +231,25 @@ Page({
     praise: function () {
         this.ShowHideMenu();
         var self = this;
-        if (app.globalData.isGetOpenid) {
+        var minAppType = config.getMinAppType;
+        if (minAppType == "0") {
+            if (app.globalData.isGetOpenid) {
 
-            wx.navigateTo({
-                url: '../pay/pay?flag=1&openid=' + app.globalData.openid + '&postid=' + self.data.postID
-            })
+                wx.navigateTo({
+                    url: '../pay/pay?flag=1&openid=' + app.globalData.openid + '&postid=' + self.data.postID
+                })
+            }
+            else {
+                self.userAuthorization();
+            }
         }
         else {
-            self.userAuthorization();
+
+            var src = config.getZanImageUrl;
+            wx.previewImage({
+                urls: [src],
+            });
+
         }
     },
 
@@ -399,10 +415,18 @@ Page({
                                 }
                             }
                             else {
+                                var minAppType = config.getMinAppType;
                                 var url = '../webpage/webpage'
-                                wx.navigateTo({
-                                    url: url + '?url=' + href
-                                })
+                                if (minAppType == "0") {
+                                    url = '../webpage/webpage';
+                                    wx.navigateTo({
+                                        url: url + '?url=' + href
+                                    })
+                                }
+                                else {
+                                    self.copyLink(href);
+                                }
+
 
                             }
 
@@ -411,8 +435,6 @@ Page({
                     }).catch(res => {
                         console.log(response.data.message);
                     })
-
-
             }
         }
 
@@ -463,9 +485,9 @@ Page({
                 }
 
             })
-        .catch(response=>{
-            console.log(response.data.message);
-        })
+            .catch(response => {
+                console.log(response.data.message);
+            })
 
 
     },
@@ -574,10 +596,10 @@ Page({
                 if (text === '') {
                     self.setData({
                         parentID: "0",
-                        placeholder: "输入评论",
+                        placeholder: "评论...",
                         userid: "",
-                        toFromId:"",
-                        commentdate:""
+                        toFromId: "",
+                        commentdate: ""
                     });
                 }
 
@@ -587,7 +609,7 @@ Page({
     },
     onRepleyFocus: function (e) {
         var self = this;
-        isFocusing = false;        
+        isFocusing = false;
         console.log('onRepleyFocus', isFocusing);
         if (!self.data.focus) {
             self.setData({ focus: true })
@@ -641,7 +663,7 @@ Page({
                                     content: '',
                                     parent: "0",
                                     userid: 0,
-                                    placeholder: "输入评论",
+                                    placeholder: "评论...",
                                     focus: false,
                                     commentsList: []
 
@@ -661,10 +683,9 @@ Page({
                                     // }
                                 }, 900);
                                 console.log(res.data.message);
-                                if (parent != "0" && !util.getDateOut(commentdate) && toFromId !="")
-                                {
+                                if (parent != "0" && !util.getDateOut(commentdate) && toFromId != "") {
                                     var useropenid = res.data.useropenid;
-                                   var data =
+                                    var data =
                                         {
                                             openid: useropenid,
                                             postid: postID,
@@ -694,8 +715,6 @@ Page({
                                     });
 
                                 }
-
-
                                 // console.log(res.data.code);
                                 self.fetchCommentData(self.data, '1');
                             }
@@ -804,99 +823,271 @@ Page({
             'dialog.content': ''
         })
     },
-    getGoodsQrcode: function () {
-        var page = this;
-        page.ShowHideMenu();
-        page.setData({
-            goods_qrcode_active: "active",            
-        });
-        if (page.data.goods_qrcode)
-            return true;
-        app.request({
-            url: api.default.goods_qrcode,
-            data: {
-                goods_id: page.data.id,
-            },
-            success: function (res) {
-                if (res.code == 0) {
-                    page.setData({
-                        goods_qrcode: res.data.pic_url,
-                    });
-                }
-                if (res.code == 1) {
-                    page.goodsQrcodeClose();
-                    wx.showModal({
-                        title: "提示",
-                        content: res.msg,
-                        showCancel: false,
-                        success: function (res) {
-                            if (res.confirm) {
+    downimageTolocal: function () {
+        var self = this;
+        self.ShowHideMenu();
+        // wx.showLoading({
+        //     title: "正在生成海报",
+        //     mask: true,
+        // });
+        var postid = self.data.detail.id;
+        var title = self.data.detail.title.rendered;
+        var path = "pages/detail/detail?id=" + postid;
+        var excerpt = util.removeHTML(self.data.detail.excerpt.rendered);
+        var postImageUrl = "";
+        var posterImagePath = "";
+        var qrcodeImagePath = "";
+        var flag = false;
+        var imageInlocalFlag = false;
+        var domain = config.getDomain;
 
-                            }
-                        }
-                    });
-                }
-            },
-        });
-    },
+        var fristImage = self.data.detail.content_first_image; 
 
-    goodsQrcodeClose: function () {
-        var page = this;
-        page.setData({
-            goods_qrcode_active: "",
-            no_scroll: false,
-        });
-    },
-
-    saveGoodsQrcode: function () {
-        var page = this;
-        if (!wx.saveImageToPhotosAlbum) {
-            // 如果希望用户在最新版本的客户端上体验您的小程序，可以这样子提示
-            wx.showModal({
-                title: '提示',
-                content: '当前微信版本过低，无法使用该功能，请升级到最新微信版本后重试。'
-            });
-            return;
+        //获取文章首图临时地址，若没有就用默认的图片,如果图片不是request域名，使用本地图片
+        if (fristImage && fristImage.indexOf(domain) !=-1) {
+            postImageUrl = fristImage;
+        }
+        else {
+            postImageUrl = config.getPostImageUrl;
+            posterImagePath = postImageUrl;
+            imageInlocalFlag=true;
         }
 
+        console.log(postImageUrl);
+        if (app.globalData.isGetOpenid) {
+            var openid = app.globalData.openid;
+            var data = {
+                postid: postid,                
+                path: path,               
+                openid: openid
+            };
+
+            var url = Api.creatPoster();
+            var qrcodeUrl = "";
+            var posterQrcodeUrl = Api.getPosterQrcodeUrl() + "qrcode-" + postid + ".png";
+            //生成二维码
+            var creatPosterRequest = wxRequest.postRequest(url, data);
+            creatPosterRequest.then(response => {
+                if (response.statusCode == 200) {
+                    if (response.data.status == '200') {
+                        const downloadTaskQrcodeImage = wx.downloadFile({
+                            url: posterQrcodeUrl,
+                            success: res => {
+                                if (res.statusCode === 200) {
+                                    qrcodeImagePath = res.tempFilePath;
+                                    console.log("二维码图片本地位置：" + res.tempFilePath);
+                                    if (!imageInlocalFlag) {
+                                        const downloadTaskForPostImage = wx.downloadFile({
+                                            url: postImageUrl,
+                                            success: res => {
+                                                if (res.statusCode === 200) {
+                                                    posterImagePath = res.tempFilePath;
+                                                    console.log("文章图片本地位置：" + res.tempFilePath);
+                                                    flag = true;
+                                                    if (posterImagePath && qrcodeImagePath) {
+                                                        self.createPosterLocal(posterImagePath, qrcodeImagePath, title, excerpt);
+                                                    }
+                                                }
+                                                else {
+                                                    console.log(res);
+                                                    wx.hideLoading();
+                                                    wx.showToast({
+                                                        title: "生成海报失败...",
+                                                        mask: true,
+                                                        duration: 2000
+                                                    });
+                                                    return false;
+
+
+                                                }
+                                            }
+                                        });
+                                        downloadTaskForPostImage.onProgressUpdate((res) => {
+                                            console.log('下载文章图片进度：' + res.progress)
+
+                                        })
+                                    }
+                                    else {
+                                        if (posterImagePath && qrcodeImagePath) {
+                                            self.createPosterLocal(posterImagePath, qrcodeImagePath, title, excerpt);
+                                        }
+                                    }
+                                }
+                                else {
+                                    console.log(res);
+                                    //wx.hideLoading();
+                                    flag = false;
+                                    wx.showToast({
+                                        title: "生成海报失败...",
+                                        mask: true,
+                                        duration: 2000
+                                    });
+                                    return false;
+                                }
+                            }
+                        });
+                        downloadTaskQrcodeImage.onProgressUpdate((res) => {
+                            console.log('下载二维码进度', res.progress)
+                        })
+                    }
+                    else {
+                        console.log(response);
+                        //wx.hideLoading();
+                        flag = false;
+                        wx.showToast({
+                            title: "生成海报失败...",
+                            mask: true,
+                            duration: 2000
+                        });
+                        return false;
+                    }
+                }
+                else {
+                    console.log(response);
+                    //wx.hideLoading();
+                    flag = false;
+                    wx.showToast({
+                        title: "生成海报失败...",
+                        mask: true,
+                        duration: 2000
+                    });
+                    return false;
+                }
+
+            });
+        }
+
+    },
+    //将canvas转换为图片保存到本地，然后将路径传给image图片的src
+    createPosterLocal: function (postImageLocal, qrcodeLoal, title, excerpt) {
+        var that = this;
         wx.showLoading({
-            title: "正在保存图片",
+            title: "正在生成海报",
+            mask: true,
+        });
+        var context = wx.createCanvasContext('mycanvas');
+        context.setFillStyle('#ffffff');//填充背景色
+        context.fillRect(0, 0, 600, 970);
+        context.drawImage(postImageLocal, 0, 0, 600, 400);//绘制首图
+        context.drawImage(qrcodeLoal, 90, 720, 180, 180);//绘制二维码
+        context.drawImage(that.data.logo, 350, 740, 130, 130);//画logo
+        //const grd = context.createLinearGradient(30, 690, 570, 690)//定义一个线性渐变的颜色
+        //grd.addColorStop(0, 'black')
+        //grd.addColorStop(1, '#118fff')
+        //context.setFillStyle(grd)
+        context.setFillStyle("#000000");
+        context.setFontSize(20);
+        context.setTextAlign('center');
+        context.fillText("阅读文章,请长按识别二维码", 300, 940);
+        //context.setStrokeStyle(grd)
+        context.setFillStyle("#000000");
+        context.beginPath()//分割线
+        context.moveTo(30, 690)
+        context.lineTo(570, 690)
+        context.stroke();
+        // this.setUserInfo(context);//用户信息        
+        util.drawTitleExcerpt(context, title, excerpt);//文章标题
+        context.draw();
+        //将生成好的图片保存到本地，需要延迟一会，绘制期间耗时
+        setTimeout(function () {
+            wx.canvasToTempFilePath({
+                canvasId: 'mycanvas',
+                success: function (res) {
+                    var tempFilePath = res.tempFilePath;
+                    // that.setData({
+                    //     imagePath: tempFilePath,
+                    //     maskHidden: "none"
+                    // });
+                    wx.hideLoading();
+                    console.log("海报图片路径：" + res.tempFilePath);                    
+                    that.modalView.showModal({
+                        title: '保存至相册可以分享到朋友圈',
+                        confirmation: false,
+                        confirmationText: '',
+                        inputFields: [{
+                            fieldName: 'posterImage',
+                            fieldType: 'Image',
+                            fieldPlaceHolder: '',
+                            fieldDatasource: res.tempFilePath,
+                            isRequired: false,
+                        }],
+                        confirm: function (res) {
+                            console.log(res)
+                            //用户按确定按钮以后会回到这里，并且对输入的表单数据会带回
+                        }
+                    })
+
+
+                },
+                fail: function (res) {
+                    console.log(res);
+                }
+            });
+        }, 900);
+    },    
+    creatPoster: function () {
+
+        /////////////////
+        var self = this;
+        self.ShowHideMenu();
+        if (self.data.posterImageUrl) {
+            url = '../poster/poster?posterImageUrl=' + posterImageUrl;
+            wx.navigateTo({
+                url: url
+            })
+            return true;
+        }
+        var postid = self.data.detail.id;
+        var title = self.data.detail.title.rendered;
+        var path = "pages/detail/detail?id=" + postid;
+        var postImageUrl = "";
+        if (self.data.detail.content_first_image) {
+            postImageUrl = self.data.detail.content_first_image;
+        }
+        wx.showLoading({
+            title: "正在生成图片",
             mask: false,
         });
 
-        wx.downloadFile({
-            url: page.data.goods_qrcode,
-            success: function (e) {
-                wx.saveImageToPhotosAlbum({
-                    filePath: e.tempFilePath,
-                    success: function () {
-                        wx.showToast({
-                            title: "商品海报保存成功",
-                        });
-                    },
-                    complete: function (e) {
-                        console.log(e);
-                        wx.hideLoading();
+        if (app.globalData.isGetOpenid) {
+            var openid = app.globalData.openid;
+            var data = {
+                postid: postid,
+                title: title,
+                path: path,
+                postImageUrl: postImageUrl,
+                openid: openid
+            };
+            var url = Api.creatPoster();
+            var posterImageUrl = Api.getPosterUrl() + "poster-" + postid + ".jpg";
+            var creatPosterRequest = wxRequest.postRequest(url, data);
+            creatPosterRequest.then(response => {
+                if (response.statusCode == 200) {
+                    if (response.data.status == '200') {
+                        url = '../poster/poster?posterImageUrl=' + posterImageUrl;
+                        wx.navigateTo({
+                            url: url
+                        })
+
+                    } else {
+                        console.log(response);
+
                     }
-                });
-            },
-            complete: function (e) {
-                console.log(e);
+                }
+                else {
+                    console.log(response);
+                }
+
+            }).catch(response => {
+                console.log(response);
+            }).finally(function (response) {
                 wx.hideLoading();
-            }
-        });
+            });
 
-    },
+        }
 
-    goodsQrcodeClick: function (e) {
-        var src = e.currentTarget.dataset.src;
-        wx.previewImage({
-            urls: [src],
-        });
-    },
-    closeCouponBox: function (e) {
-        this.setData({
-            get_coupon_list: ""
-        });
+        ////////
+
     }
+
 })

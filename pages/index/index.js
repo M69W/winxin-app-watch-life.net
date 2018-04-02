@@ -297,16 +297,67 @@ Page({
   },
   //首页图标跳转
   onNavRedirect:function(e){      
-      var url = e.currentTarget.dataset.redirectlink;
-      var redirectType = e.currentTarget.dataset.redirecttype;
-      var appid = e.currentTarget.dataset.appid; 
-      if (redirectType=='page')
-      {
+      var redicttype = e.currentTarget.dataset.redicttype;
+      var url = e.currentTarget.dataset.url == null ? '' : e.currentTarget.dataset.url;
+      var appid = e.currentTarget.dataset.appid == null ? '' : e.currentTarget.dataset.appid;
+      var extraData = e.currentTarget.dataset.extraData == null ? '' : e.currentTarget.dataset.extraData;
+      if (redicttype == 'apppage') {//跳转到小程序内部页面         
           wx.navigateTo({
               url: url
           })
       }
-      else if (redirectType == 'app')
+      else if (redicttype == 'webpage')//跳转到web-view内嵌的页面
+      {
+          url = '../webpage/webpage?url=' + url;
+          wx.navigateTo({
+              url: url
+          })
+      }
+      else if (redicttype == 'miniapp')//跳转到其他app
+      {
+          wx.navigateToMiniProgram({
+              appId: appid,
+              envVersion: 'release',
+              path: url,
+              extraData: extraData,
+              success(res) {
+                  // 打开成功
+              },
+              fail: function (res) {
+                  console.log(res);
+              }
+          })
+      }
+      
+  },
+  // 跳转至查看小程序列表页面或文章详情页
+  redictAppDetail: function (e) {
+      // console.log('查看文章');
+      var id = e.currentTarget.id;
+      var redicttype = e.currentTarget.dataset.redicttype;
+      var url = e.currentTarget.dataset.url == null ? '':e.currentTarget.dataset.url;
+      var appid = e.currentTarget.dataset.appid == null ? '' : e.currentTarget.dataset.appid;
+      
+      if (redicttype == 'detailpage')//跳转到内容页
+      {
+          url = '../detail/detail?id=' + id;
+          wx.navigateTo({
+              url: url
+          })
+      }
+      if (redicttype == 'apppage') {//跳转到小程序内部页面         
+          wx.navigateTo({
+              url: url
+          })
+      }
+      else if (redicttype == 'webpage')//跳转到web-view内嵌的页面
+      {
+          url = '../webpage/webpage?url=' + url;
+          wx.navigateTo({
+              url: url
+          })          
+      }
+      else if (redicttype == 'miniapp')//跳转到其他app
       {
           wx.navigateToMiniProgram({
               appId: appid,
@@ -319,28 +370,7 @@ Page({
                   console.log(res);
               }
           })
-
-      }   
-      
-  },
-  // 跳转至查看小程序列表页面或文章详情页
-  redictAppDetail: function (e) {
-      // console.log('查看文章');
-      var id = e.currentTarget.id;
-      var redicttype = e.currentTarget.dataset.redicttype;
-      var url='';
-      if (redicttype == 'detailpage')
-      {
-          url = '../detail/detail?id=' + id;
       }
-      else if (redicttype == 'apppage')
-      {
-          url = '../applist/applist';
-      }
-      
-      wx.navigateTo({
-          url: url
-      })
   },
   //返回首页
   redictHome: function (e) {
